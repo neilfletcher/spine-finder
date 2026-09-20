@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spine Finder</title>
+<meta name="description" content="Arrow spine calculator for recurve, compound, barebow and longbow archers, built from published shaft-selection charts and real-world tuned setups.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-JF54HQGVLT"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-JF54HQGVLT');
+</script>
+
+<style>
+:root{
+  --bg:#F6F3EC;
+  --surface:#FFFFFF;
+  --surface-2:#EFEAE0;
+  --ink:#211F1A;
+  --ink-soft:#645E4E;
+  --ink-faint:#8C8571;
+  --accent:#33563B;
+  --accent-strong:#24402A;
+  --accent-ink:#FAF8F2;
+  --gold:#A9762F;
+  --gold-soft:#EFE1C6;
+  --line:#DED7C7;
+  --warn:#93401F;
+  --warn-bg:#F3E4D8;
+  --shadow: 0 1px 2px rgba(33,31,26,0.06), 0 8px 24px -12px rgba(33,31,26,0.18);
+  font-synthesis: none;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#17160F;
+    --surface:#1F1E17;
+    --surface-2:#282619;
+    --ink:#EFEAE0;
+    --ink-soft:#B7AF9A;
+    --ink-faint:#847C68;
+    --accent:#7DB088;
+    --accent-strong:#96C6A0;
+    --accent-ink:#12190F;
+    --gold:#D9AD62;
+    --gold-soft:#332A15;
+    --line:#38351F;
+    --warn:#E29A78;
+    --warn-bg:#332318;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#17160F;
+  --surface:#1F1E17;
+  --surface-2:#282619;
+  --ink:#EFEAE0;
+  --ink-soft:#B7AF9A;
+  --ink-faint:#847C68;
+  --accent:#7DB088;
+  --accent-strong:#96C6A0;
+  --accent-ink:#12190F;
+  --gold:#D9AD62;
+  --gold-soft:#332A15;
+  --line:#38351F;
+  --warn:#E29A78;
+  --warn-bg:#332318;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+}
+
+html{color-scheme:light dark;}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  padding-inline:20px;
+  padding-block:28px 60px;
+  max-width:1180px;
+  margin-inline:auto;
+}
+[hidden]{display:none !important;}
+h1,h2,h3{
+  font-family:"Fraunces","Iowan Old Style",Georgia,serif;
+  font-weight:600;
+  text-wrap:balance;
+  margin:0;
+  color:var(--ink);
+}
+.num{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric:tabular-nums;}
+
+/* ---------- header ---------- */
+.masthead{
+  display:flex;
+  flex-wrap:wrap;
+  gap:16px 32px;
+  align-items:flex-end;
+  justify-content:space-between;
+  padding-bottom:22px;
+  margin-bottom:26px;
+  border-bottom:1px solid var(--line);
+}
+.masthead .eyebrow{
+  font-size:12px;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  color:var(--gold);
+  font-weight:600;
+  margin-bottom:6px;
+  display:block;
+}
+.masthead h1{font-size:clamp(28px,4vw,38px); line-height:1.05;}
+.masthead p{color:var(--ink-soft); max-width:46ch; margin-top:8px; font-size:14.5px; line-height:1.5;}
+.target-mark{
+  width:52px; height:52px; border-radius:50%; flex-shrink:0;
+  background:
+    radial-gradient(circle at 50% 50%, var(--gold) 0 18%, var(--surface) 19% 34%, var(--accent) 35% 52%, var(--surface) 53% 68%, var(--warn) 69% 84%, var(--surface) 85% 100%);
+  box-shadow:var(--shadow);
+}
+
+/* ---------- layout ---------- */
+.layout{
+  display:grid;
+  grid-template-columns: minmax(0,1.15fr) minmax(0,0.85fr);
+  gap:24px;
+  align-items:start;
+}
+@media (max-width:820px){
+  .layout{grid-template-columns:1fr;}
+}
+.panel{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:16px;
+  box-shadow:var(--shadow);
+  padding:22px clamp(16px,4vw,28px);
+}
+.results-panel{position:sticky; top:calc(env(safe-area-inset-top,0px) + 16px);}
+@media (max-width:820px){.results-panel{position:static;}}
+
+/* ---------- bow type selector ---------- */
+.segmented{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:6px;
+  background:var(--surface-2);
+  padding:5px;
+  border-radius:12px;
+  margin-bottom:22px;
+}
+.segmented button{
+  font:inherit;
+  font-size:13px;
+  font-weight:600;
+  padding:9px 4px;
+  border:none;
+  border-radius:8px;
+  background:transparent;
+  color:var(--ink-soft);
+  cursor:pointer;
+  transition:background .15s ease, color .15s ease;
+}
+.segmented button.active{
+  background:var(--accent);
+  color:var(--accent-ink);
+  box-shadow:var(--shadow);
+}
+@media (max-width:520px){
+  .segmented{grid-template-columns:repeat(2,1fr);}
+}
+
+/* ---------- form ---------- */
+.field-group{margin-bottom:20px;}
+.field-group legend, .field-title{
+  font-weight:600;
+  font-size:13px;
+  letter-spacing:.03em;
+  text-transform:uppercase;
+  color:var(--ink-faint);
+  margin-bottom:10px;
+  display:block;
+}
+.row{display:flex; flex-wrap:wrap; gap:14px;}
+.field{flex:1 1 150px; min-width:0;}
+.field label{
+  display:block;
+  font-size:13.5px;
+  font-weight:600;
+  margin-bottom:5px;
+  color:var(--ink);
+}
+.field .hint{display:block; font-size:12px; color:var(--ink-faint); margin-top:5px; line-height:1.4;}
+input[type=number], input[type=text], select{
+  width:100%;
+  font:inherit;
+  font-size:15px;
+  padding:9px 11px;
+  border-radius:9px;
+  border:1px solid var(--line);
+  background:var(--bg);
+  color:var(--ink);
+}
+input[type=number]{font-family:"IBM Plex Mono",ui-monospace,monospace;}
+input:focus, select:focus, button:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:1px;
+}
+.unit-input{position:relative;}
+.unit-input input{padding-right:44px;}
+.unit-input span{
+  position:absolute; right:11px; top:50%; transform:translateY(-50%);
+  font-size:12px; color:var(--ink-faint); pointer-events:none;
+}
+.check-row{
+  display:flex; align-items:flex-start; gap:9px;
+  background:var(--surface-2); border-radius:10px; padding:11px 13px;
+  margin-top:10px;
+}
+.check-row input{margin-top:3px; accent-color:var(--accent); width:16px; height:16px; flex-shrink:0;}
+.check-row label{font-size:13.5px; color:var(--ink-soft); line-height:1.45; font-weight:500;}
+.pillgroup{display:flex; gap:8px; flex-wrap:wrap;}
+.pillgroup button{
+  font:inherit; font-size:13.5px; font-weight:600;
+  padding:8px 14px; border-radius:999px; cursor:pointer;
+  border:1px solid var(--line); background:var(--bg); color:var(--ink-soft);
+}
+.pillgroup button.active{background:var(--accent); border-color:var(--accent); color:var(--accent-ink);}
+
+details.adv{
+  border-top:1px solid var(--line);
+  padding-top:14px;
+  margin-top:6px;
+}
+details.adv summary{
+  cursor:pointer; font-weight:600; font-size:13.5px; color:var(--accent-strong);
+  list-style:none;
+}
+details.adv summary::-webkit-details-marker{display:none;}
+details.adv summary::before{content:"+ "; }
+details.adv[open] summary::before{content:"– ";}
+details.adv .row{margin-top:16px;}
+
+.ref-note{font-size:12px; color:var(--ink-faint); margin-top:2px;}
+
+/* ---------- results ---------- */
+.spine-readout{
+  text-align:center;
+  padding:20px 10px 22px;
+  border-radius:14px;
+  background:linear-gradient(180deg, var(--gold-soft), transparent 70%);
+  margin-bottom:18px;
+}
+.spine-readout .label{
+  font-size:12px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-faint); font-weight:600; margin-bottom:6px;
+}
+.spine-readout .value{
+  font-size:clamp(46px,9vw,64px);
+  font-weight:600;
+  color:var(--accent-strong);
+  line-height:1;
+}
+.spine-readout .sub{font-size:13px; color:var(--ink-soft); margin-top:8px;}
+.chip-row{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:12px;}
+.chip{
+  font-size:12.5px; font-weight:600; padding:5px 11px; border-radius:999px;
+  background:var(--surface-2); color:var(--ink-soft); border:1px solid var(--line);
+}
+.chip.stiffer{color:var(--accent-strong); border-color:var(--accent);}
+.chip.weaker{color:var(--gold); border-color:var(--gold);}
+
+.callout{
+  border-radius:12px; padding:12px 14px; font-size:13px; line-height:1.5; margin-bottom:16px;
+}
+.callout.warn{background:var(--warn-bg); color:var(--warn);}
+.callout.info{background:var(--surface-2); color:var(--ink-soft);}
+
+.summary-list{list-style:none; padding:0; margin:0 0 18px; font-size:13.5px;}
+.summary-list li{
+  display:flex; justify-content:space-between; gap:12px;
+  padding:7px 0; border-bottom:1px dashed var(--line); color:var(--ink-soft);
+}
+.summary-list li:last-child{border-bottom:none;}
+.summary-list b{color:var(--ink); font-weight:600; text-align:right;}
+
+.example-block h3{font-size:14px; margin-bottom:8px;}
+.example-list{list-style:none; padding:0; margin:0 0 4px; display:grid; gap:8px;}
+.example-list li{
+  background:var(--surface-2); border-radius:10px; padding:9px 12px 10px; font-size:13.5px; color:var(--ink);
+}
+.example-list li span{display:block; font-size:11.5px; color:var(--ink-faint); margin-top:2px;}
+.tier-tag{
+  display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
+  padding:2px 8px; border-radius:999px; margin-bottom:6px;
+}
+.tier-tag.cheap{background:var(--surface); color:var(--ink-soft); border:1px solid var(--line);}
+.tier-tag.mid{background:var(--gold-soft); color:var(--gold);}
+.tier-tag.expensive{background:var(--accent); color:var(--accent-ink);}
+.tiny-note{font-size:11.5px; color:var(--ink-faint); margin-top:10px; line-height:1.5;}
+
+footer{
+  margin-top:34px; padding-top:18px; border-top:1px solid var(--line);
+  font-size:12px; color:var(--ink-faint); line-height:1.6;
+}
+footer a{color:var(--ink-soft);}
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div style="display:flex; gap:14px; align-items:flex-start;">
+    <div class="target-mark" aria-hidden="true"></div>
+    <div>
+      <span class="eyebrow">Club arrow setup</span>
+      <h1>Spine Finder</h1>
+      <p>Enter a member's bow and draw specs to get a starting arrow spine, plus stock shafts worth trying. Built from published manufacturer charts, not a substitute for paper tuning.</p>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- ===================== FORM ===================== -->
+  <section class="panel" aria-label="Bow and arrow inputs">
+
+    <div class="segmented" role="tablist" aria-label="Bow type" id="bowTypeTabs">
+      <button class="active" data-bow="recurve" type="button">Recurve</button>
+      <button data-bow="compound" type="button">Compound</button>
+      <button data-bow="barebow" type="button">Barebow</button>
+      <button data-bow="longbow" type="button">Longbow / Trad</button>
+    </div>
+
+    <!-- Draw weight -->
+    <div class="field-group">
+      <span class="field-title" id="weightTitle">Limb &amp; draw weight</span>
+      <div class="row">
+        <div class="field">
+          <label for="poundage" id="poundageLabel">Limb-marked poundage</label>
+          <div class="unit-input"><input type="number" id="poundage" value="34" step="0.5" min="8" max="90"><span>lb</span></div>
+          <span class="hint" id="poundageHint">Most recurve/longbow limbs are marked at 28&Prime; AMO draw length.</span>
+        </div>
+        <div class="field">
+          <label for="drawLength">Draw length</label>
+          <div class="unit-input"><input type="number" id="drawLength" value="28" step="0.25" min="18" max="34"><span>in</span></div>
+          <span class="hint">Measured to the pivot point of the grip.</span>
+        </div>
+      </div>
+      <div class="check-row" id="actualWeightRow">
+        <input type="checkbox" id="isActualWeight">
+        <label for="isActualWeight">That figure is already my actual holding weight at full draw, not a 28&Prime; rating</label>
+      </div>
+    </div>
+
+    <!-- Arrow -->
+    <div class="field-group">
+      <span class="field-title">Arrow</span>
+      <div class="row">
+        <div class="field">
+          <label for="arrowLength">Arrow length (nock throat to end of shaft)</label>
+          <div class="unit-input"><input type="number" id="arrowLength" value="29" step="0.25" min="18" max="36"><span>in</span></div>
+          <span class="hint" id="arrowLengthHint">Suggested from your draw length &ndash; edit if yours differs.</span>
+        </div>
+        <div class="field">
+          <label for="pointWeight">Point weight (incl. any insert over standard)</label>
+          <div class="unit-input"><input type="number" id="pointWeight" value="100" step="5" min="40" max="300"><span>gr</span></div>
+          <span class="hint">100gr is the standard most charts are built around.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recurve/barebow only: limb material -->
+    <div class="field-group" id="limbMaterialGroup">
+      <span class="field-title">Limbs</span>
+      <div class="pillgroup" id="limbMaterialPills">
+        <button type="button" class="active" data-mat="performance">Carbon / foam (club or race limbs)</button>
+        <button type="button" data-mat="beginner">Wood / fibreglass (starter limbs)</button>
+      </div>
+      <span class="hint">Beginner wood-core limbs push less energy into the arrow, so they call for a slightly weaker (higher-number) spine than the same poundage in performance limbs.</span>
+    </div>
+
+    <!-- Compound only -->
+    <div class="field-group" id="compoundGroup" hidden>
+      <span class="field-title">Release</span>
+      <div class="pillgroup" id="releasePills">
+        <button type="button" class="active" data-rel="mechanical">Mechanical release</button>
+        <button type="button" data-rel="finger">Fingers / tab</button>
+      </div>
+      <details class="adv">
+        <summary>Fine-tune (optional)</summary>
+        <div class="row">
+          <div class="field">
+            <label for="bowSpeed">Bow speed rating (IBO/ATA)</label>
+            <select id="bowSpeed">
+              <option value="-10">Up to 275 fps</option>
+              <option value="-5">276&ndash;300 fps</option>
+              <option value="0" selected>301&ndash;320 fps (typical)</option>
+              <option value="5">321&ndash;340 fps</option>
+              <option value="10">341&ndash;350 fps</option>
+              <option value="15">351 fps or faster</option>
+            </select>
+            <span class="hint">Not sure? Leave on typical &ndash; it assumes no adjustment.</span>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- Reference-only kit details -->
+    <details class="adv">
+      <summary>Riser, limb length &amp; kit details (for the record card &ndash; doesn't change the spine)</summary>
+      <div class="row">
+        <div class="field">
+          <label for="riserModel">Riser make &amp; model</label>
+          <input type="text" id="riserModel" placeholder="e.g. Win&amp;Win Wiawis Nex">
+        </div>
+        <div class="field">
+          <label for="riserLength">Riser length</label>
+          <select id="riserLength">
+            <option value="">Not specified</option>
+            <option>21&Prime;</option>
+            <option>23&Prime;</option>
+            <option>25&Prime;</option>
+            <option>27&Prime;</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="limbBrand">Limb make &amp; model</label>
+          <input type="text" id="limbBrand" placeholder="e.g. Hoyt Podium">
+        </div>
+        <div class="field">
+          <label for="limbLength">Limb length</label>
+          <select id="limbLength">
+            <option value="">Not specified</option>
+            <option>Short</option>
+            <option>Medium</option>
+            <option>Long</option>
+          </select>
+        </div>
+      </div>
+      <p class="ref-note">Riser and limb length set your bow's overall length and brace height, which matter for tune &ndash; but the physics of arrow spine come from actual draw weight, draw length, arrow length and point weight, so these fields are kept for your notes rather than fed into the calculation.</p>
+    </details>
+
+  </section>
+
+  <!-- ===================== RESULTS ===================== -->
+  <section class="panel results-panel" aria-label="Recommendation">
+
+    <div class="spine-readout">
+      <div class="label" id="spineLabel">Recommended spine</div>
+      <div class="value num" id="spineValue">500</div>
+      <div class="sub" id="spineSub">Closest stock size to a calculated 512</div>
+      <div class="chip-row" id="chipRow"></div>
+    </div>
+
+    <div id="warnBox"></div>
+
+    <ul class="summary-list" id="summaryList"></ul>
+
+    <div class="example-block">
+      <h3 id="exampleHeading">Shafts worth trying in this spine</h3>
+      <ul class="example-list" id="exampleList"></ul>
+      <p class="tiny-note" id="exampleNote">Examples only, drawn from long-running product lines &ndash; ranges shift between model years, so check the maker's current chart before you buy a dozen.</p>
+    </div>
+
+  </section>
+
+</div>
+
+<footer>
+  <p><strong>How this works:</strong> the calculator starts from published target/hunting shaft-selection charts for recurve, compound and traditional bows, then applies the documented adjustments for draw length vs. 28&Prime; limb ratings, point weight, limb material, release type and compound bow speed.</p>
+  <p><strong>Recurve and barebow carry a real-world correction.</strong> Two independently reported, working setups &ndash; a 38lb recurve (W&amp;W NS-G limbs, 100gr point, 28&Prime; draw, 29.5&Prime; arrow) shooting 560-spine A/C/Es, and a 34lb barebow (Uukha limbs, otherwise identical) shooting 620-spine A/C/Es &ndash; both tune noticeably weaker than the sourced chart predicts, which matches a common complaint about these charts running stiff. This tool builds that correction into both spine numbers, with barebow getting a further step on top for its plunger-less setup. It has not been re-verified against a wider spread of bow weights, so treat it as a calibrated estimate rather than a manufacturer-verified figure, and it'll only get more accurate as more real setups confirm or shift it. <strong>Compound is not corrected this way</strong> &ndash; it's read straight off the sourced chart, since going too weak there is the direction that can cause a failure at full draw.</p>
+  <p><strong>Longbow/traditional works differently.</strong> Wood shafts aren't sold by carbon-style spine number &ndash; they're graded and sold by the bow weight they suit, so this matches your actual holding weight (adjusted for point weight) directly to that rating, rather than running it through the carbon chart at all. Full carbon isn't offered here for longbow, in keeping with how the discipline is traditionally shot.</p>
+  <p><strong>This is a starting point, not a fitting.</strong> Confirm any recommendation with paper tuning, bare-shaft testing, or your club's coach before buying arrows &ndash; especially on compound bows, where a shaft that's too weak can fail at full draw.</p>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  var STANDARD_SPINES = [1900,1800,1700,1600,1500,1400,1300,1200,1100,1000,900,800,700,650,600,550,500,460,400,350,340,300,260,250,220,200,175,150,125];
+
+  var LEN_COLS = [27,28,29,30,31];
+
+  // Two independently reported, working real-world setups both tune noticeably
+  // weaker than the sourced chart predicts: a 38lb recurve (W&W NS-G limbs, 100gr
+  // point, 28in draw, 29.5in arrow) shooting 560-spine A/C/Es, and a 34lb barebow
+  // (Uukha limbs, otherwise identical) shooting 620-spine A/C/Es. The gap between
+  // them is only ~2lb equivalent, so most of the discrepancy is a general
+  // correction to the sourced chart itself, with a small extra step for barebow's
+  // plunger-less setup on top.
+  var RECURVE_CHART_CORRECTION = 16.5; // lb equivalent, applied to recurve/barebow/longbow
+  var BAREBOW_EXTRA = 2; // lb equivalent, on top of the general correction above
+
+  var RECURVE_TABLE = [
+    {w:22.5, vals:[700,600,600,500,500]},
+    {w:27.5, vals:[600,600,500,500,500]},
+    {w:32.5, vals:[600,500,500,500,400]},
+    {w:37.5, vals:[500,500,500,400,400]},
+    {w:42.5, vals:[500,500,400,400,400]},
+    {w:47.5, vals:[500,400,400,400,350]},
+    {w:52.5, vals:[400,400,400,350,350]},
+    {w:57.5, vals:[400,400,350,350,350]}
+  ];
+
+  var COMPOUND_TABLE = [
+    {w:35, vals:[500,500,500,400,400]},
+    {w:45, vals:[500,400,400,400,350]},
+    {w:55, vals:[400,400,350,350,350]},
+    {w:65, vals:[350,350,350,300,300]},
+    {w:75, vals:[350,300,300,300,250]}
+  ];
+
+  var TRAD_TABLE = [
+    {w:27.5, vals:[600,600,500,500,500]},
+    {w:32.5, vals:[600,500,500,500,400]},
+    {w:37.5, vals:[500,500,500,400,400]},
+    {w:42.5, vals:[500,500,400,400,400]},
+    {w:47.5, vals:[500,400,400,400,350]},
+    {w:52.5, vals:[400,400,400,350,350]},
+    {w:57.5, vals:[400,400,350,350,350]}
+  ];
+
+  // Carbon/aluminium shafts for recurve, barebow and compound, three price tiers per spine bucket.
+  var EXAMPLES = [
+    {max:135,  cheap:"Carbon Express Maxima Photon", mid:"Victory VAP SS", expensive:"Easton FMJ"},
+    {max:270,  cheap:"Carbon Express Maxima Triad", mid:"Victory RIP TKO", expensive:"Easton 4mm/5mm Axis"},
+    {max:355,  cheap:"Carbon Express Maxima Sable RZ", mid:"Gold Tip Hunter Pro", expensive:"Easton X10"},
+    {max:475,  cheap:"Carbon Express Maxima RED", mid:"Gold Tip Pierce Platinum", expensive:"Easton A/C/E"},
+    {max:625,  cheap:"Victory VForce", mid:"Skylon Precium", expensive:"Easton A/C/E"},
+    {max:800,  cheap:"Easton Avance", mid:"Skylon Precium", expensive:"Easton A/C/E (light build)"},
+    {max:1150, cheap:"Easton Jazz", mid:"Skylon Baldo", expensive:"Easton Avance"},
+    {max:Infinity, cheap:"Carbon Express Bengal (youth)", mid:"Skylon Baila", expensive:"Easton Jazz (junior spec)"}
+  ];
+
+  // Wood shafts for longbow/traditional only – never carbon. Traditional wood
+  // arrows are sold graded by their intended bow-weight range (e.g. "40-45#"),
+  // not a carbon-style spine number, so longbow gets its own band + tiers.
+  var WOOD_TIERS = {
+    cheap: "Standard-grade Pine or Ash shafts (e.g. a club-set dozen from Merlin Archery or Quicks Archery)",
+    mid: "Machine-spined, weight-matched Douglas Fir (e.g. Surewood Shafts, or graded Fir from Quicks Archery)",
+    expensive: "Hand-selected, weight-matched Port Orford Cedar (e.g. Rose City Archery premium grade, or a bespoke matched dozen from a specialist fletcher)"
+  };
+  var WOOD_HEAVY_NOTE = "Above roughly 55lb, Douglas Fir or Ash generally holds up better than Port Orford Cedar.";
+
+  function $(id){ return document.getElementById(id); }
+
+  function interp1D(xs, ys, x){
+    var n = xs.length;
+    if (n === 1) return ys[0];
+    if (x <= xs[0]){
+      var s0 = (ys[1]-ys[0])/(xs[1]-xs[0]);
+      return ys[0] + s0*(x-xs[0]);
+    }
+    if (x >= xs[n-1]){
+      var s1 = (ys[n-1]-ys[n-2])/(xs[n-1]-xs[n-2]);
+      return ys[n-1] + s1*(x-xs[n-1]);
+    }
+    for (var i=0;i<n-1;i++){
+      if (x>=xs[i] && x<=xs[i+1]){
+        var t=(x-xs[i])/(xs[i+1]-xs[i]);
+        return ys[i] + t*(ys[i+1]-ys[i]);
+      }
+    }
+    return ys[n-1];
+  }
+
+  function lookupSpine(table, W, L, lowTol, highTol){
+    if (lowTol === undefined) lowTol = 2;
+    if (highTol === undefined) highTol = 2;
+    var rowVals = table.map(function(r){ return interp1D(LEN_COLS, r.vals, L); });
+    var ws = table.map(function(r){ return r.w; });
+    var raw = interp1D(ws, rowVals, W);
+    var wMin = table[0].w, wMax = table[table.length-1].w;
+    var lMin = LEN_COLS[0], lMax = LEN_COLS[LEN_COLS.length-1];
+    var extrapolated = (W < wMin-lowTol) || (W > wMax+highTol) || (L < lMin-1) || (L > lMax+1);
+    return {raw:raw, extrapolated:extrapolated};
+  }
+
+  function nearestStandard(x){
+    var best = STANDARD_SPINES[0], bd = Infinity;
+    for (var i=0;i<STANDARD_SPINES.length;i++){
+      var d = Math.abs(STANDARD_SPINES[i]-x);
+      if (d<bd){ bd=d; best=STANDARD_SPINES[i]; }
+    }
+    return best;
+  }
+
+  function bracket(x){
+    var asc = STANDARD_SPINES.slice().sort(function(a,b){return a-b;});
+    var lower=asc[0], upper=asc[asc.length-1];
+    for (var i=0;i<asc.length;i++){
+      if (asc[i] <= x) lower = asc[i];
+    }
+    for (var j=asc.length-1;j>=0;j--){
+      if (asc[j] >= x) upper = asc[j];
+    }
+    return {lower:lower, upper:upper};
+  }
+
+  function examplesFor(spine){
+    for (var i=0;i<EXAMPLES.length;i++){
+      if (spine <= EXAMPLES[i].max) return EXAMPLES[i];
+    }
+    return EXAMPLES[EXAMPLES.length-1];
+  }
+
+  function woodBandFor(effectiveLb){
+    var lower = 5 * Math.floor(effectiveLb / 5);
+    if (lower < 15) lower = 15;
+    return lower + "–" + (lower+5) + " lb";
+  }
+
+  // ---------------- state ----------------
+  var state = { bow: "recurve", limbMaterial: "performance", release: "mechanical" };
+  var lengthTouched = false;
+
+  function suggestedArrowLength(drawLen, bow){
+    if (bow === "compound") return drawLen + 0.5;
+    if (bow === "longbow") return drawLen + 1.5;
+    if (bow === "barebow") return drawLen + 1.5;
+    return drawLen + 1; // recurve
+  }
+
+  function defaultPointWeight(bow){
+    if (bow === "longbow") return 130;
+    return 100; // recurve, barebow and compound all commonly start from 100gr
+  }
+
+  // ---------------- bow type tabs ----------------
+  $("bowTypeTabs").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-bow]");
+    if (!btn) return;
+    state.bow = btn.getAttribute("data-bow");
+    Array.prototype.forEach.call($("bowTypeTabs").querySelectorAll("button"), function(b){
+      b.classList.toggle("active", b === btn);
+    });
+    applyBowTypeUI();
+    compute();
+  });
+
+  function applyBowTypeUI(){
+    var bow = state.bow;
+    $("compoundGroup").hidden = (bow !== "compound");
+    $("limbMaterialGroup").hidden = (bow === "compound" || bow === "longbow");
+    $("actualWeightRow").hidden = (bow === "compound");
+
+    if (bow === "compound"){
+      $("weightTitle").textContent = "Peak draw weight";
+      $("poundageLabel").textContent = "Peak draw weight";
+      $("poundageHint").textContent = "The bow's set peak weight, as marked on the limbs or cam module.";
+    } else if (bow === "recurve"){
+      $("weightTitle").textContent = "Limb & draw weight";
+      $("poundageLabel").textContent = "Limb-marked poundage";
+      $("poundageHint").textContent = "Most recurve limbs are marked at 28″ AMO draw length.";
+    } else if (bow === "barebow"){
+      $("weightTitle").textContent = "Limb & draw weight";
+      $("poundageLabel").textContent = "Limb-marked poundage";
+      $("poundageHint").textContent = "Same recurve limbs as Olympic-style – marked at 28″ AMO draw length.";
+    } else if (bow === "longbow"){
+      $("weightTitle").textContent = "Bow weight";
+      $("poundageLabel").textContent = "Marked draw weight";
+      $("poundageHint").textContent = "Longbows are often marked at the maker's own draw length – tick below if this figure is already your actual holding weight.";
+    }
+
+    if (!lengthTouched){
+      var dl = parseFloat($("drawLength").value) || 28;
+      $("arrowLength").value = suggestedArrowLength(dl, bow);
+    }
+    $("pointWeight").value = defaultPointWeight(bow);
+    $("arrowLengthHint").textContent = bow === "longbow"
+      ? "Traditional bows have no centre-cut riser, so arrows usually run a little longer than draw length."
+      : bow === "barebow"
+      ? "Barebow arrows commonly run a little longer than draw length – edit if yours differs."
+      : "Suggested from your draw length – edit if yours differs.";
+  }
+
+  $("arrowLength").addEventListener("input", function(){ lengthTouched = true; });
+  $("drawLength").addEventListener("input", function(){
+    if (!lengthTouched){
+      $("arrowLength").value = suggestedArrowLength(parseFloat($("drawLength").value)||28, state.bow);
+    }
+  });
+
+  $("limbMaterialPills").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-mat]");
+    if (!btn) return;
+    state.limbMaterial = btn.getAttribute("data-mat");
+    Array.prototype.forEach.call($("limbMaterialPills").querySelectorAll("button"), function(b){
+      b.classList.toggle("active", b === btn);
+    });
+    compute();
+  });
+
+  $("releasePills").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-rel]");
+    if (!btn) return;
+    state.release = btn.getAttribute("data-rel");
+    Array.prototype.forEach.call($("releasePills").querySelectorAll("button"), function(b){
+      b.classList.toggle("active", b === btn);
+    });
+    compute();
+  });
+
+  ["poundage","drawLength","arrowLength","pointWeight","isActualWeight","bowSpeed"].forEach(function(id){
+    var el = $(id);
+    if (el) el.addEventListener("input", compute);
+  });
+
+  // ---------------- core compute ----------------
+  function compute(){
+    var bow = state.bow;
+    var poundage = parseFloat($("poundage").value) || 0;
+    var drawLength = parseFloat($("drawLength").value) || 28;
+    var arrowLength = parseFloat($("arrowLength").value) || suggestedArrowLength(drawLength, bow);
+    var pointWeight = parseFloat($("pointWeight").value) || 100;
+
+    var actualWeight;
+    var notes = [];
+
+    if (bow === "compound"){
+      actualWeight = poundage;
+    } else {
+      var isActual = $("isActualWeight").checked;
+      if (isActual){
+        actualWeight = poundage;
+      } else {
+        actualWeight = poundage + 2*(drawLength - 28);
+        notes.push({k:"Actual weight at your draw length", v:actualWeight.toFixed(1)+" lb (2 lb per inch from 28″)"});
+      }
+    }
+
+    var effective = actualWeight;
+    var pointAdj = 3 * ((pointWeight - 100) / 25);
+    effective += pointAdj;
+    // Wood-arrow weight ratings are matched directly to actual bow weight (adjusted
+    // for point weight) by convention – they are not read off the same carbon-spine
+    // chart, so they skip the chart-specific corrections applied below.
+    var woodRatingWeight = actualWeight + pointAdj;
+
+    var table;
+    if (bow === "compound"){
+      table = COMPOUND_TABLE;
+      var relAdj = state.release === "finger" ? 5 : 0;
+      effective += relAdj;
+      var speedAdj = parseFloat($("bowSpeed").value) || 0;
+      effective += speedAdj;
+      if (relAdj) notes.push({k:"Finger-release adjustment", v:"+5 lb"});
+      if (speedAdj) notes.push({k:"Bow speed adjustment", v:(speedAdj>0?"+":"")+speedAdj+" lb"});
+    } else if (bow === "longbow"){
+      table = TRAD_TABLE;
+      effective -= RECURVE_CHART_CORRECTION;
+      effective -= 5;
+      // (wood-arrow rating uses woodRatingWeight above, not this chart-corrected
+      // figure, so those two adjustments aren't listed in the summary for longbow)
+    } else {
+      table = RECURVE_TABLE; // recurve + barebow
+      effective -= RECURVE_CHART_CORRECTION;
+      notes.push({k:"Real-world chart correction", v:"−"+RECURVE_CHART_CORRECTION+" lb equivalent"});
+      var matAdj = state.limbMaterial === "beginner" ? -5 : 0;
+      effective += matAdj;
+      if (matAdj) notes.push({k:"Wood/fibreglass limb allowance", v:"−5 lb"});
+      if (bow === "barebow"){
+        effective -= BAREBOW_EXTRA;
+        notes.push({k:"Barebow (no plunger) extra allowance", v:"−"+BAREBOW_EXTRA+" lb equivalent"});
+      }
+    }
+
+    if (Math.abs(pointAdj) >= 0.5){
+      notes.push({k:"Point weight adjustment", v:(pointAdj>0?"+":"")+pointAdj.toFixed(1)+" lb equivalent"});
+    }
+
+    var lowTol = (bow === "compound") ? 2 : 12; // wider tolerance where a real-world correction already applies
+    var result = lookupSpine(table, effective, arrowLength, lowTol, 2);
+    var rounded = nearestStandard(result.raw);
+    var br = bracket(result.raw);
+    var isWood = (bow === "longbow");
+    var woodBand = woodBandFor(woodRatingWeight);
+
+    // ---- render ----
+    var chipRow = $("chipRow");
+    chipRow.innerHTML = "";
+    if (isWood){
+      $("spineLabel").textContent = "Recommended wood-arrow rating";
+      $("spineValue").textContent = woodBand;
+      $("spineSub").textContent = "Wood shafts are sold graded by bow weight, not a spine number – ask for this rating";
+    } else {
+      $("spineLabel").textContent = "Recommended spine";
+      $("spineValue").textContent = rounded;
+      $("spineSub").textContent = "Calculated dynamic spine ≈ " + result.raw.toFixed(0) + " – closest stock size shown above";
+      if (br.lower !== br.upper){
+        var c1 = document.createElement("span");
+        c1.className = "chip stiffer";
+        c1.textContent = "Stiffer option: " + br.lower;
+        chipRow.appendChild(c1);
+        var c2 = document.createElement("span");
+        c2.className = "chip weaker";
+        c2.textContent = "Weaker option: " + br.upper;
+        chipRow.appendChild(c2);
+      }
+    }
+
+    var warnBox = $("warnBox");
+    warnBox.innerHTML = "";
+    if (result.extrapolated && !isWood){
+      var w = document.createElement("div");
+      w.className = "callout warn";
+      w.textContent = "These inputs sit outside the standard manufacturer chart range, so this figure is extrapolated. Treat it as a rough starting point and check with paper tuning or a coach before buying arrows.";
+      warnBox.appendChild(w);
+    } else {
+      var info = document.createElement("div");
+      info.className = "callout info";
+      info.textContent = bow === "recurve"
+        ? "Published recurve charts consistently read stiffer than what tuned setups actually shoot, so this figure already includes a real-world correction – when it sits between two stock spines, target archery convention also favours going a little weaker rather than too stiff."
+        : bow === "barebow"
+        ? "Shooting off the shelf with no plunger causes even more arrow flex on top of the general chart correction, so barebow gets a further weaker-spine step – calibrated against a real reported barebow setup rather than a manufacturer chart, since none publish one for barebow."
+        : bow === "longbow"
+        ? "Traditional bows generally shoot a noticeably weaker arrow than a recurve of the same marked weight, on top of the same real-world chart correction – this already accounts for both. Ask for wood shafts by this weight rating, not a carbon spine number – full carbon isn't traditionally correct for a longbow."
+        : "Compound results are read straight off the sourced chart with no real-world correction applied – unlike the other bow types here, this hasn't been checked against a reported working setup. A too-weak arrow can fail at full draw, so if in doubt, go stiffer and confirm with paper tuning.";
+      warnBox.appendChild(info);
+    }
+
+    var summary = $("summaryList");
+    summary.innerHTML = "";
+    var rows = [
+      {k:"Bow type", v: bow.charAt(0).toUpperCase()+bow.slice(1).replace("longbow","Longbow / Traditional")},
+      {k: bow==="compound" ? "Peak draw weight" : "Limb-marked poundage", v: poundage + " lb"},
+      {k:"Draw length", v: drawLength + "″"},
+      {k:"Arrow length", v: arrowLength + "″"},
+      {k:"Point weight", v: pointWeight + " gr"}
+    ];
+    rows = rows.concat(notes);
+    rows.forEach(function(r){
+      var li = document.createElement("li");
+      var s1 = document.createElement("span"); s1.textContent = r.k;
+      var s2 = document.createElement("b"); s2.textContent = r.v;
+      li.appendChild(s1); li.appendChild(s2);
+      summary.appendChild(li);
+    });
+
+    $("exampleHeading").textContent = isWood ? "Wood shafts worth trying at this rating" : "Shafts worth trying in this spine";
+    var exList = $("exampleList");
+    exList.innerHTML = "";
+    var tiers = isWood ? WOOD_TIERS : examplesFor(rounded);
+    [["cheap","Budget"],["mid","Mid-range"],["expensive","Premium"]].forEach(function(pair){
+      var li = document.createElement("li");
+      var tag = document.createElement("span");
+      tag.className = "tier-tag " + pair[0];
+      tag.textContent = pair[1];
+      var name = document.createElement("span");
+      name.textContent = tiers[pair[0]];
+      li.appendChild(tag);
+      li.appendChild(name);
+      exList.appendChild(li);
+    });
+    var exNote = $("exampleNote");
+    exNote.textContent = isWood
+      ? "Traditional wood shafts vary naturally, so buy a matched, graded dozen rather than mixed loose shafts – and expect to still tune by trimming length or swapping point weight. " + WOOD_HEAVY_NOTE
+      : "Examples only, drawn from long-running product lines – ranges shift between model years, so check the maker's current chart before you buy a dozen.";
+  }
+
+  applyBowTypeUI();
+  compute();
+})();
+</script>
+</body>
+</html>
