@@ -492,12 +492,14 @@ footer a{color:var(--ink-soft);}
   // Two independently reported, working real-world setups both tune noticeably
   // weaker than the sourced chart predicts: a 38lb recurve (W&W NS-G limbs, 100gr
   // point, 28in draw, 29.5in arrow) shooting 560-spine A/C/Es, and a 34lb barebow
-  // (Uukha limbs, otherwise identical) shooting 620-spine A/C/Es. The gap between
-  // them is only ~2lb equivalent, so most of the discrepancy is a general
-  // correction to the sourced chart itself, with a small extra step for barebow's
-  // plunger-less setup on top.
-  var RECURVE_CHART_CORRECTION = 16.5; // lb equivalent, applied to recurve/barebow/longbow
-  var BAREBOW_EXTRA = 2; // lb equivalent, on top of the general correction above
+  // (Uukha limbs, otherwise identical) shooting 620-spine A/C/Es. Most of the
+  // discrepancy is a general correction to the sourced chart itself, with a
+  // smaller extra step for barebow's plunger-less setup on top. (Both effective
+  // weights land below the chart's lowest row, so the fit is done via the same
+  // least-squares extrapolation lookupSpine/interp1D use at runtime, not a
+  // simple secant – see interp1D below for why that matters.)
+  var RECURVE_CHART_CORRECTION = 19.1; // lb equivalent, applied to recurve/barebow/longbow
+  var BAREBOW_EXTRA = 6.6; // lb equivalent, on top of the general correction above
 
   var RECURVE_TABLE = [
     {w:22.5, vals:[700,600,600,500,500]},
@@ -555,13 +557,17 @@ footer a{color:var(--ink-soft);}
   function interp1D(xs, ys, x){
     var n = xs.length;
     if (n === 1) return ys[0];
-    if (x <= xs[0]){
-      var s0 = (ys[1]-ys[0])/(xs[1]-xs[0]);
-      return ys[0] + s0*(x-xs[0]);
-    }
-    if (x >= xs[n-1]){
-      var s1 = (ys[n-1]-ys[n-2])/(xs[n-1]-xs[n-2]);
-      return ys[n-1] + s1*(x-xs[n-1]);
+    if (x < xs[0] || x > xs[n-1]){
+      // Extrapolating beyond the table: fit a line through ALL the known points
+      // (least squares) rather than just the nearest two. The source chart's
+      // values step in discrete standard-spine sizes, so a 2-point secant's
+      // slope can swing with the other dimension (e.g. arrow length) and make
+      // an extrapolated result dip then rise instead of moving smoothly.
+      var sumX=0,sumY=0,sumXY=0,sumXX=0;
+      for (var i=0;i<n;i++){ sumX+=xs[i]; sumY+=ys[i]; sumXY+=xs[i]*ys[i]; sumXX+=xs[i]*xs[i]; }
+      var slope = (n*sumXY - sumX*sumY) / (n*sumXX - sumX*sumX);
+      var intercept = (sumY - slope*sumX) / n;
+      return intercept + slope*x;
     }
     for (var i=0;i<n-1;i++){
       if (x>=xs[i] && x<=xs[i+1]){
@@ -777,7 +783,7 @@ footer a{color:var(--ink-soft);}
       notes.push({k:"Point weight adjustment", v:(pointAdj>0?"+":"")+pointAdj.toFixed(1)+" lb equivalent"});
     }
 
-    var lowTol = (bow === "compound") ? 2 : 12; // wider tolerance where a real-world correction already applies
+    var lowTol = (bow === "compound") ? 2 : 16; // wider tolerance where a real-world correction already applies
     var result = lookupSpine(table, effective, arrowLength, lowTol, 2);
     var rounded = nearestStandard(result.raw);
     var br = bracket(result.raw);
