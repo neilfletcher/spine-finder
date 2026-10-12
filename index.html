@@ -17,6 +17,16 @@
   gtag('js', new Date());
   gtag('config', 'G-JF54HQGVLT');
 </script>
+<script>
+  // Usage events for the admin dashboard: what was done here, never who did it.
+  window.ssTrack = function (name, detail) {
+    try { if (window.gtag) gtag('event', name, detail ? { detail: String(detail).slice(0, 60) } : {}); } catch (e) {}
+  };
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('[data-tab]');
+    if (t) window.ssTrack('tab_viewed', t.getAttribute('data-tab'));
+  }, true);
+</script>
 
 <style>
 :root{
@@ -874,6 +884,29 @@ footer a{color:var(--ink-soft);}
 
   applyBowTypeUI();
   compute();
+})();
+</script>
+<script>
+(function () {
+  // One "spine_calculated" event once someone has stopped changing the inputs for 4 seconds.
+  var timer, last = '';
+  function sig() {
+    var b = document.querySelector('#bowTypeTabs button.active');
+    return Array.prototype.map.call(document.querySelectorAll('input, select'), function (e) { return e.type === 'checkbox' || e.type === 'radio' ? e.checked : e.value; }).join('|') +
+      '|' + (b ? b.getAttribute('data-bow') : '') + '|' + Array.prototype.map.call(document.querySelectorAll('.active[data-value], button.active'), function (x) { return x.textContent; }).join(',');
+  }
+  function arm() {
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      var s = sig();
+      if (s === last) return;
+      last = s;
+      var b = document.querySelector('#bowTypeTabs button.active');
+      if (window.ssTrack) window.ssTrack('spine_calculated', b ? b.getAttribute('data-bow') : '');
+    }, 4000);
+  }
+  document.addEventListener('input', arm);
+  document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('button')) arm(); });
 })();
 </script>
 </body>
